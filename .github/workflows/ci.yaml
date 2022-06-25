@@ -1,0 +1,67 @@
+  name: ci
+
+  on:
+    push:
+      branches: [master]
+    pull_request:
+      branches: [master]
+
+  jobs:
+    test:
+      name: CI - ${{ github.event_name }}
+      runs-on: ${{ matrix.os }}
+      strategy:
+        fail-fast: true
+        matrix:
+          python-version:
+            - 3.9
+          os:
+            - ubuntu-latest
+          arc:
+            - x64
+      env:
+        OS: ${{ matrix.os }}
+        PYTHON: ${{ matrix.python-version }}
+      steps:
+        - name: Checking out the repository
+          uses: actions/checkout@v2
+        - run: sudo apt-get update -y
+        - uses: actions/setup-python@v2
+          with:
+            python-version: ${{ matrix.python-version }}
+            architecture: ${{ matrix.arch }}
+        - name: Installing Python dependencies
+          run: |
+            pip install --upgrade pip
+            pip install -r requirements.txt
+        - name: testing
+          run: |
+            pytest -v --cov=./ --cov-report=xml
+            rm -rf $(CURDIR)/.pytest_cache/
+            rm -rf $(CURDIR)/tests/__pycache__/
+        - name: check formatting
+          run: black $(find . -name "*.py") --check
+        - name: check syntax and typing
+          run: |
+            pylint -E $(find . -name '*.py' | egrep -v '\.venv') --extension-pkg-whitelist=cv2
+            mypy $(find . -name "*.py") --ignore-missing-imports --disallow-untyped-defs --disable-error-code name-defined
+            rm -rf $(CURDIR)/.mypy_cache/
+        - name: Upload coverage to Codecov
+          uses: codecov/codecov-action@v2
+          with:
+            directory: ./coverage/reports/
+            env_vars: OS,PYTHON
+            fail_ci_if_error: true
+            files: ./coverage1.xml,./coverage2.xml
+            flags: unittests
+            name: codecov-umbrella
+            path_to_write_report: ./coverage/codecov_report.txt
+            verbose: true
+    build:
+      name: build wheel package
+      needs: [test]
+      if: ${{ needs.test.result == 'success' && github.event_name == 'push' }}
+      runs-on: ${{ matrix.os }}
+      steps:
+        - name: build
+          run: python build.py
