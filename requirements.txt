@@ -1,7 +1,7 @@
 numpy==1.23.0
 opencv-python==4.6.0.66
 depthai==2.16.0.0
-open3d==0.15.1
+open3d==0.15.2
 pylint
 pytest
 black

@@ -3,14 +3,15 @@ import numpy as np
 import cv2 as cv
 import open3d as o3d
 import pickle
+from typing import Any
 
 
-def get_frame(queue):
+def get_frame(queue: Any) -> Any:
     frame = queue.get()
     return frame.getCvFrame()
 
 
-def generate_depth_disparity_mapping():
+def generate_depth_disparity_mapping() -> Any:
     l_intrinsic = np.array(
         [
             [795.2091064453125, 0.0, 637.9916381835938],
@@ -66,7 +67,7 @@ class DepthCamera(object):
             self.rIntrinsic,
         ) = generate_depth_disparity_mapping()
 
-    def get_mono_camera(self, is_left: bool):
+    def get_mono_camera(self, is_left: bool) -> Any:
         mono = self.pipeline.createMonoCamera()
         mono.setResolution(dai.MonoCameraProperties.SensorResolution.THE_720_P)
 
@@ -76,13 +77,13 @@ class DepthCamera(object):
             mono.setBoardSocket(dai.CameraBoardSocket.RIGHT)
         return mono
 
-    def get_rgb_camera(self):
+    def get_rgb_camera(self) -> Any:
         rgb = self.pipeline.createColorCamera()
         rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
         rgb.setBoardSocket(dai.CameraBoardSocket.RGB)
         return rgb
 
-    def get_stereo_depth(self):
+    def get_stereo_depth(self) -> Any:
         stereo_depth = self.pipeline.createStereoDepth()
         stereo_depth.setLeftRightCheck(True)
         self.monoLeft.out.link(stereo_depth.left)
@@ -104,7 +105,7 @@ class DepthCamera(object):
         stereo_depth.setRectifyEdgeFillColor(0)
         return stereo_depth
 
-    def setup_links(self):
+    def setup_links(self) -> Any:
         xout_disp = self.pipeline.createXLinkOut()
         xout_disp.setStreamName("disparity")
 
@@ -120,16 +121,18 @@ class DepthCamera(object):
         self.rgb.video.link(xout_rgb.input)
         return xout_disp, xout_rgb, xout_depth
 
-    def run_camera(self):
+    def run_camera(self) -> None:
         p_intrinsic = np.round(self.lIntrinsic).astype(int)
 
-        pinhole_camera_intrinsic = o3d.camera.PinholeCameraIntrinsic(
-            1280,
-            720,
-            p_intrinsic[0][0],
-            p_intrinsic[1][1],
-            p_intrinsic[0][2],
-            p_intrinsic[1][2],
+        pinhole_camera_intrinsic = (
+            o3d.camera.PinholeCameraIntrinsic(  # pylint: disable=no-member
+                1280,
+                720,
+                p_intrinsic[0][0],
+                p_intrinsic[1][1],
+                p_intrinsic[0][2],
+                p_intrinsic[1][2],
+            )
         )
 
         with dai.Device(self.pipeline) as device:
@@ -143,58 +146,67 @@ class DepthCamera(object):
             )
 
             capture_num = 0
-            vis = o3d.visualization.Visualizer()
+            vis = o3d.visualization.Visualizer()  # pylint: disable=no-member
             vis.create_window()
             is_first_pc = True
             while True:
                 raw_disparity = get_frame(disparity_queue)
                 disparity = (raw_disparity * disparity_multiplier).astype(np.uint8)
-                disparity = cv.applyColorMap(disparity, cv.COLORMAP_JET)
+                disparity = cv.applyColorMap(  # pylint: disable=no-member
+                    disparity, cv.COLORMAP_JET  # pylint: disable=no-member
+                )  # pylint: disable=no-member
 
                 depth = get_frame(depth_queue)
 
                 rgb = get_frame(rgb_queue)
 
-                rgb_reshaped = cv.resize(rgb, (disparity.shape[1], disparity.shape[0]))
+                rgb_reshaped = cv.resize(  # pylint: disable=no-member
+                    rgb, (disparity.shape[1], disparity.shape[0])
+                )  # pylint: disable=no-member
 
-                cv.imshow("Disparity", disparity)
-                cv.imshow("Color", rgb_reshaped)
+                cv.imshow("Disparity", disparity)  # pylint: disable=no-member
+                cv.imshow("Color", rgb_reshaped)  # pylint: disable=no-member
 
-                rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
-                    o3d.geometry.Image(rgb_reshaped),
-                    o3d.geometry.Image(depth),
+                rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(  # pylint: disable=no-member
+                    o3d.geometry.Image(rgb_reshaped),  # pylint: disable=no-member
+                    o3d.geometry.Image(depth),  # pylint: disable=no-member
                     convert_rgb_to_intensity=False,
                 )
                 if is_first_pc:
-                    pcl = o3d.geometry.PointCloud.create_from_rgbd_image(
+                    pcl = o3d.geometry.PointCloud.create_from_rgbd_image(  # pylint: disable=no-member
                         rgbd_image, pinhole_camera_intrinsic
                     )
                     vis.add_geometry(pcl)
-                    origin = o3d.geometry.TriangleMesh.create_coordinate_frame(
+                    origin = o3d.geometry.TriangleMesh.create_coordinate_frame(  # pylint: disable=no-member
                         size=0.3, origin=[0, 0, 0]
                     )
                     vis.add_geometry(origin)
                     is_first_pc = False
                 else:
                     vis.remove_geometry(pcl)
-                    pcl = o3d.geometry.PointCloud.create_from_rgbd_image(
+                    pcl = o3d.geometry.PointCloud.create_from_rgbd_image(  # pylint: disable=no-member
                         rgbd_image, pinhole_camera_intrinsic
                     )
                     vis.add_geometry(pcl)
                     vis.poll_events()
                     vis.update_renderer()
 
-                key = cv.waitKey(1)
+                key = cv.waitKey(1)  # pylint: disable=no-member
                 if key == ord("q"):
                     break
                 elif key == ord("c"):
-                    cv.imwrite(f"disparity_{capture_num}.png", disparity)
-                    cv.imwrite(f"rgb_{capture_num}.png", rgb_reshaped)
+                    cv.imwrite(  # pylint: disable=no-member
+                        f"disparity_{capture_num}.png", disparity
+                    )  # pylint: disable=no-member
+                    cv.imwrite(  # pylint: disable=no-member
+                        f"rgb_{capture_num}.png", rgb_reshaped
+                    )  # pylint: disable=no-member
                     with open(f"depth_{capture_num}.pkl", "wb") as f:
                         pickle.dump(depth, f)
                         pickle.dump(disparity, f)
                         pickle.dump(raw_disparity, f)
                     capture_num += 1
 
-            cv.destroyAllWindows()
+            cv.destroyAllWindows()  # pylint: disable=no-member
             vis.destroy_window()
+        return None

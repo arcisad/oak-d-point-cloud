@@ -1,6 +1,6 @@
-
 string = "This is cool"
 
 
-def simple_test():
+def test_simple() -> None:
     assert type(string) is str
+    return None
