@@ -1,2 +1,2 @@
 # Current Version
-__version__ = "0.0.1"  # <-- Increment version changes here
+__version__ = "0.1.0"  # <-- Increment version changes here
